@@ -43,6 +43,11 @@ public class UserController {
     @GetMapping("/{username}")
     public ResponseEntity<User> findByUserName(@PathVariable String username) {
         User user = userRepository.findByUsername(username);
+        if (user == null) {
+            LOG.warn("No user found: " + username);
+        } else {
+            LOG.info("User found: " + username);
+        }
         return user == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(user);
     }
 
