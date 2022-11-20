@@ -10,6 +10,8 @@ import static com.example.demo.constants.TestConstants.TEST_USER_USERNAME;
 import static com.example.demo.helpers.TestHelper.buildModifyCartRequest;
 import static com.example.demo.helpers.TestHelper.buildTestItem;
 import static com.example.demo.helpers.TestHelper.buildTestUser;
+import static com.example.demo.helpers.TestHelper.calculateCartTotalPrice;
+import static org.junit.Assert.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.when;
 
@@ -18,7 +20,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.TestInstance.Lifecycle;
@@ -41,7 +43,7 @@ import com.example.demo.model.persistence.repositories.UserRepository;
  * @author "dmullandev"
  *
  */
-@TestInstance(Lifecycle.PER_CLASS)
+@TestInstance(Lifecycle.PER_METHOD)
 public class CartControllerTest {
 
     @Mock
@@ -68,13 +70,17 @@ public class CartControllerTest {
     // item not found
     private static final Long TEST_ITEM_ID3_NOTFOUND = 3L;
 
-    @BeforeAll
-    public void setup() {
+    @BeforeEach
+    public void reset() {
         MockitoAnnotations.initMocks(this);
 
         User user = buildTestUser(TEST_USER_ID, TEST_USER_USERNAME, TEST_USER_PASSWORD);
         user.setCart(new Cart());
         when(mockUserRepository.findByUsername(TEST_USER_USERNAME)).thenReturn(user);
+
+        mockUserRepository.deleteAll();
+        mockCartRepository.deleteAll();
+        mockItemRepository.deleteAll();
     }
 
     @Test
@@ -102,9 +108,9 @@ public class CartControllerTest {
 
         ResponseEntity<Cart> response2 = testCartController.addTocart(buildModifyCartRequest(TEST_USER_USERNAME, TEST_ITEM_ID2, 1));
 
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertEquals(itemTracker, response.getBody().getItems());
-        assertEquals(calculateCartTotalPrice(itemTracker), response.getBody().getTotal());
+        assertEquals(HttpStatus.OK, response2.getStatusCode());
+        assertEquals(itemTracker, response2.getBody().getItems());
+        assertEquals(calculateCartTotalPrice(itemTracker), response2.getBody().getTotal());
 
         // user not found
         ResponseEntity<Cart> response3 = testCartController.addTocart(buildModifyCartRequest(TEST_USER_NOTFOUND, TEST_ITEM_ID2, 1));
@@ -119,9 +125,43 @@ public class CartControllerTest {
         assertEquals(HttpStatus.NOT_FOUND, response4.getStatusCode());
     }
 
-    private BigDecimal calculateCartTotalPrice(List<Item> items) {
-        return items.stream()
-                    .map(item -> item.getPrice())
-                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+    @Test
+    public void removeFromCart() {
+
+        // one item, verify, then remove it
+        when(mockItemRepository.findById(TEST_ITEM_ID)).thenReturn(
+                Optional.of(buildTestItem(TEST_ITEM_ID, TEST_ITEM_NAME, TEST_ITEM_PRICE, TEST_ITEM_DESCRIPTION)));
+
+        ResponseEntity<Cart> response = testCartController.addTocart(buildModifyCartRequest(TEST_USER_USERNAME, TEST_ITEM_ID, 1));
+
+        List<Item> itemTracker = new ArrayList<>();
+
+        itemTracker.add(buildTestItem(TEST_ITEM_ID, TEST_ITEM_NAME, TEST_ITEM_PRICE, TEST_ITEM_DESCRIPTION));
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals(itemTracker, response.getBody().getItems());
+        assertEquals(calculateCartTotalPrice(itemTracker), response.getBody().getTotal());
+        assertTrue(response.getBody().getItems().size() == 1);
+
+        itemTracker.remove(buildTestItem(TEST_ITEM_ID, TEST_ITEM_NAME, TEST_ITEM_PRICE, TEST_ITEM_DESCRIPTION));
+
+        ResponseEntity<Cart> response2 = testCartController.removeFromcart(buildModifyCartRequest(TEST_USER_USERNAME, TEST_ITEM_ID, 1));
+
+        assertEquals(HttpStatus.OK, response2.getStatusCode());
+        assertEquals(itemTracker, response2.getBody().getItems());
+        assertTrue(response2.getBody().getItems().size() == 0);
+
+        // user not found
+        ResponseEntity<Cart> response3 = testCartController.removeFromcart(buildModifyCartRequest(TEST_USER_NOTFOUND, TEST_ITEM_ID2, 1));
+
+        assertEquals(HttpStatus.NOT_FOUND, response3.getStatusCode());
+
+        // item not found
+        when(mockItemRepository.findById(TEST_ITEM_ID3_NOTFOUND)).thenReturn(Optional.empty());
+
+        ResponseEntity<Cart> response4 = testCartController.removeFromcart(buildModifyCartRequest(TEST_USER_USERNAME, TEST_ITEM_ID3_NOTFOUND, 1));
+
+        assertEquals(HttpStatus.NOT_FOUND, response4.getStatusCode());
     }
+
 }

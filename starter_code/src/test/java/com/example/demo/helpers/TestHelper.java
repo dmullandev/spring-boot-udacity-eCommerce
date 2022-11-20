@@ -63,4 +63,10 @@ public class TestHelper {
         return cart;
     }
 
+    public static BigDecimal calculateCartTotalPrice(List<Item> items) {
+        return items.stream()
+                    .map(item -> item.getPrice())
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
 }
