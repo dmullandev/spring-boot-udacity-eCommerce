@@ -1,5 +1,13 @@
 package com.example.demo.controllers;
 
+import static com.example.demo.constants.TestConstants.TEST_INCORRECT_USER_NAME;
+import static com.example.demo.constants.TestConstants.TEST_USER_ID;
+import static com.example.demo.constants.TestConstants.TEST_USER_PASSWORD;
+import static com.example.demo.constants.TestConstants.TEST_USER_PASSWORD_INCORRECT_LENGTH;
+import static com.example.demo.constants.TestConstants.TEST_USER_PASSWORD_UNEQUAL;
+import static com.example.demo.constants.TestConstants.TEST_USER_USERNAME;
+import static com.example.demo.helpers.TestHelper.buildCreateUserRequest;
+import static com.example.demo.helpers.TestHelper.buildTestUser;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.when;
 
@@ -19,8 +27,13 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import com.example.demo.model.persistence.User;
 import com.example.demo.model.persistence.repositories.CartRepository;
 import com.example.demo.model.persistence.repositories.UserRepository;
-import com.example.demo.model.requests.CreateUserRequest;
 
+/**
+ * Tests class {@link UserController}
+ * 
+ * @author "dmullandev"
+ *
+ */
 @TestInstance(Lifecycle.PER_CLASS)
 public class UserControllerTest {
 
@@ -36,76 +49,60 @@ public class UserControllerTest {
     @InjectMocks
     private UserController testUserController;
 
-    private static final Long TEST_USER_ID = 1L;
-
-    private static final String TEST_USER_NAME = "testUser";
-
-    private static final String TEST_USER_PASSWORD = "testPass";
-
-    private static final String TEST_USER_PASSWORD_INCORRECT_LENGTH = "pass";
-
-    private static final String TEST_INCORRECT_USER_NAME = "fakeUserName";
-
     @BeforeAll
     public void setup() {
         MockitoAnnotations.initMocks(this);
-        createInitialUserRequest();
     }
 
     @Test
     public void findById() {
 
-        Optional<User> testUserOptional = Optional.of(buildTestUser());
+        buildCreateUserRequest(TEST_USER_USERNAME, TEST_USER_PASSWORD, TEST_USER_PASSWORD);
 
-        when(mockUserRepository.findById(TEST_USER_ID)).thenReturn(testUserOptional);
+        when(mockUserRepository.findById(TEST_USER_ID)).thenReturn(Optional.of(buildTestUser(TEST_USER_ID, TEST_USER_USERNAME, TEST_USER_PASSWORD)));
 
         ResponseEntity<User> response = testUserController.findById(TEST_USER_ID);
 
-        Long responseId = response.getBody().getId();
-
-        assertEquals(TEST_USER_ID, responseId);
+        assertEquals(TEST_USER_ID, response.getBody().getId());
     }
 
     @Test
     public void findByUsername() {
-        User testUser = buildTestUser();
+        User testUser = buildTestUser(TEST_USER_ID, TEST_USER_USERNAME, TEST_USER_PASSWORD);
 
-        when(mockUserRepository.findByUsername(TEST_USER_NAME)).thenReturn(testUser);
+        // happy path
+        when(mockUserRepository.findByUsername(TEST_USER_USERNAME)).thenReturn(testUser);
 
         ResponseEntity<User> response = testUserController.findByUserName(testUser.getUsername());
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertEquals(TEST_USER_NAME, response.getBody().getUsername());
-        // verify
+        assertEquals(TEST_USER_USERNAME, response.getBody().getUsername());
+        assertEquals(TEST_USER_USERNAME, response.getBody().getUsername());
 
+        // find non-existent
         ResponseEntity<User> response2 = testUserController.findByUserName(TEST_INCORRECT_USER_NAME);
 
         assertEquals(HttpStatus.NOT_FOUND, response2.getStatusCode());
-
-        // when(mockUserRepository.findByUsername(TEST_USER_NAME)).thenReturn(testUser);
-
-        // response.getStatusCode().compareTo(R)
+        assertEquals(null, response2.getBody());
     }
 
-    private void createInitialUserRequest() {
+    @Test
+    public void createUser() {
 
-        // when
-        CreateUserRequest cur = new CreateUserRequest();
+        // ok
+        ResponseEntity<User> response = testUserController.createUser(
+                buildCreateUserRequest(TEST_USER_USERNAME, TEST_USER_PASSWORD, TEST_USER_PASSWORD));
+        assertEquals(HttpStatus.OK, response.getStatusCode());
 
-        cur.setUsername(TEST_USER_NAME);
-        cur.setPassword(TEST_USER_PASSWORD);
-        cur.setConfirmPassword(TEST_USER_PASSWORD);
+        // incorrect length
+        ResponseEntity<User> response2 = testUserController.createUser(
+                buildCreateUserRequest(TEST_USER_USERNAME, TEST_USER_PASSWORD_INCORRECT_LENGTH, TEST_USER_PASSWORD_INCORRECT_LENGTH));
+        assertEquals(HttpStatus.BAD_REQUEST, response2.getStatusCode());
 
-        testUserController.createUser(cur);
-    }
+        // password do not equal
+        ResponseEntity<User> response3 = testUserController.createUser(
+                buildCreateUserRequest(TEST_USER_USERNAME, TEST_USER_PASSWORD, TEST_USER_PASSWORD_UNEQUAL));
+        assertEquals(HttpStatus.BAD_REQUEST, response3.getStatusCode());
 
-    private User buildTestUser() {
-        User user = new User();
-
-        user.setId(TEST_USER_ID);
-        user.setUsername(TEST_USER_NAME);
-        user.setPassword(TEST_USER_PASSWORD);
-
-        return user;
     }
 }
