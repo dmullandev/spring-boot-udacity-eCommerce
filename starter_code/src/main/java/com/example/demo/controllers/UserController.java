@@ -43,11 +43,13 @@ public class UserController {
     @GetMapping("/{username}")
     public ResponseEntity<User> findByUserName(@PathVariable String username) {
         User user = userRepository.findByUsername(username);
+
         if (user == null) {
-            LOG.warn("No user found: " + username);
+            LOG.error("UserController - FindUser - FAILURE - No user found: " + username);
         } else {
-            LOG.info("User found: " + username);
+            LOG.info("UserController - FindUser - SUCCESS - User found: " + username);
         }
+
         return user == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(user);
     }
 
@@ -60,11 +62,19 @@ public class UserController {
         user.setCart(cart);
         if (createUserRequest.getPassword().length() < 7 ||
                 !createUserRequest.getPassword().equals(createUserRequest.getConfirmPassword())) {
-            LOG.error("Error - Either length is less than 7 or pass and conf pass do not match. Unable to create " + createUserRequest.getUsername());
+            LOG.error("UserController - CreateUser - FAILURE - Either length is less than 7 or pass and conf pass do not match. Unable to create user:"
+                    + createUserRequest.getUsername());
+
             return ResponseEntity.badRequest().build();
         }
         user.setPassword(bCryptPasswordEncoder.encode(createUserRequest.getPassword()));
-        userRepository.save(user);
+        try {
+            userRepository.save(user);
+            LOG.info("UserController - CreateUser - SUCCESS - Successfully Created User: " + createUserRequest.getUsername());
+        } catch (IllegalArgumentException iae) {
+            LOG.error("UserController - SaveUser - FAILURE - Failed to save user: " + createUserRequest.getUsername());
+        }
+
         return ResponseEntity.ok(user);
     }
 

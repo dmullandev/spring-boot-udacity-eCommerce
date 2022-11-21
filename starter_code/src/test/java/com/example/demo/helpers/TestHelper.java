@@ -9,6 +9,16 @@ import com.example.demo.model.persistence.User;
 import com.example.demo.model.requests.CreateUserRequest;
 import com.example.demo.model.requests.ModifyCartRequest;
 
+/*
+The code traces at least the following:
+
+CreateUser request successes
+CreateUser request failures
+Exceptions
+order requests successes
+order requests failures
+*/
+
 public class TestHelper {
 
     public static User buildTestUser(Long id, String username, String password) {
